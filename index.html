@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Rep Ladder</title>
+<meta name="theme-color" content="#EDF0EF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101415" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: one column, one job per screen. Bottom tab bar for the thumb, big steppers, rest timer between sets. */
+:root{
+  --bg:#EDF0EF; --surface:#FFFFFF; --ink:#141A1D; --muted:#5A666B; --line:#D3DAD9;
+  --accent:#C93F14; --accent-ink:#FFFFFF; --bar:#B7C2C2; --ok:#1E7F55;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#101415; --surface:#181D1F; --ink:#EAEFEE; --muted:#9AA6A9; --line:#2A3235;
+    --accent:#FF7E4F; --accent-ink:#1C0C05; --bar:#3A4649; --ok:#4CC38A; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#101415; --surface:#181D1F; --ink:#EAEFEE; --muted:#9AA6A9; --line:#2A3235;
+  --accent:#FF7E4F; --accent-ink:#1C0C05; --bar:#3A4649; --ok:#4CC38A; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0}
+body{
+  background:var(--bg); color:var(--ink); font:16px/1.4 var(--body);
+  padding-block:calc(6px + env(safe-area-inset-top,0px)) 120px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  -webkit-tap-highlight-color:transparent;
+}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;touch-action:manipulation}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+ul{list-style:none;margin:0;padding:0}
+h1,h2,h3,p{margin:0}
+.wrap{max-width:520px;margin:0 auto;min-width:0}
+
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;padding-block:14px 10px}
+.brand{font:700 24px/1 var(--display);letter-spacing:.1em;text-transform:uppercase}
+.status{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;color:var(--muted)}
+.status i{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.status.cloud i{background:var(--ok)}
+.streak{font:600 18px/1 var(--display);letter-spacing:.06em;text-transform:uppercase;text-align:right;color:var(--muted)}
+.streak b{color:var(--ink);font-weight:700}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px;padding-block:8px 16px}
+.chip{min-height:46px;padding:0 18px;border:1.5px solid var(--line);border-radius:6px;background:var(--surface);font:600 18px/1 var(--display);letter-spacing:.06em;text-transform:uppercase}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+
+.eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px 16px 16px}
+.lvl{font:700 clamp(38px,11vw,50px)/.95 var(--display);text-transform:uppercase;text-wrap:balance;margin-top:8px}
+.goal{margin-top:10px;color:var(--muted);font-size:16px}
+.dots{display:flex;gap:8px;margin-top:14px}
+.dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--accent)}
+.dot.on{background:var(--accent)}
+
+.stepper{display:grid;grid-template-columns:64px minmax(0,1fr) 64px;align-items:center;gap:8px;margin-top:22px}
+.step{height:64px;border:2px solid var(--ink);border-radius:8px;font:600 34px/1 var(--display)}
+.val{width:100%;min-width:0;text-align:center;border:0;background:transparent;color:var(--ink);font:700 68px/1 var(--display);font-variant-numeric:tabular-nums;padding:0;-moz-appearance:textfield}
+.val::-webkit-outer-spin-button,.val::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.unit{text-align:center;margin-top:2px}
+.btn{display:block;width:100%;min-height:62px;margin-top:16px;border-radius:8px;background:var(--accent);color:var(--accent-ink);font:700 26px/1 var(--display);letter-spacing:.08em;text-transform:uppercase}
+.btn.sm{width:auto;min-height:48px;margin:0;padding:0 18px;font-size:20px;flex:none}
+.ghost{min-height:44px;padding:0 4px;color:var(--muted);font-weight:600;text-decoration:underline;text-underline-offset:3px}
+
+.rest{display:flex;align-items:center;gap:12px;margin-top:14px;min-height:56px;padding:6px 8px 6px 16px;border-radius:8px;background:var(--ink);color:var(--bg)}
+.rest b{font:700 30px/1 var(--display);font-variant-numeric:tabular-nums;flex:1}
+.rest button{min-height:44px;padding:0 12px;border:1.5px solid currentColor;border-radius:6px;font-weight:600}
+.rest-btns{display:flex;gap:6px}
+
+.banner{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding:14px;border:2px solid var(--accent);border-radius:8px;background:var(--surface)}
+.banner div{min-width:0}
+
+.sec{margin-top:26px}
+.sec h2{font:700 20px/1 var(--display);letter-spacing:.1em;text-transform:uppercase;display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.list{margin-top:6px}
+.list li{display:flex;justify-content:space-between;gap:12px;align-items:center;min-height:48px;border-bottom:1px solid var(--line)}
+.list li b{font-variant-numeric:tabular-nums;white-space:nowrap}
+.empty{margin-top:10px;color:var(--muted)}
+
+.lad{display:flex;align-items:center;gap:12px;width:100%;min-height:54px;text-align:left;border-bottom:1px solid var(--line)}
+.lad .nm{flex:1;min-width:0}
+.lad .gl{color:var(--muted);font-size:14px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.mk{flex:none;width:26px;height:26px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center}
+.mk.done{background:var(--ok);border-color:var(--ok);color:var(--bg)}
+.mk.now{border-color:var(--accent);background:var(--accent)}
+.lad.now .nm{font-weight:600}
+.lad.up .nm{color:var(--muted)}
+.here{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:600;display:block}
+
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:10px}
+.stats b{display:block;font:700 40px/1 var(--display);font-variant-numeric:tabular-nums}
+.stats span{font-size:13px;color:var(--muted)}
+svg{display:block;width:100%;max-width:100%;height:auto;margin-top:10px}
+.gl2{stroke:var(--line);stroke-width:1}
+.ax{fill:var(--muted);font:10px var(--body)}
+.bar{fill:var(--bar)}
+.bar.now{fill:var(--accent)}
+.day h3{font:600 17px/1 var(--display);letter-spacing:.08em;text-transform:uppercase;margin-top:20px;color:var(--muted)}
+
+.tabs{
+  position:fixed;left:0;right:0;bottom:0;z-index:5;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
+  background:var(--surface);border-top:1px solid var(--line);
+  padding:8px max(16px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+}
+.tabs button{min-height:52px;border-radius:6px;font:600 19px/1 var(--display);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.tabs button[aria-current="page"]{background:var(--ink);color:var(--bg)}
+@media (prefers-reduced-motion:no-preference){.dot{transition:background .15s}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="brand">Rep Ladder</div>
+      <div class="status" id="sync"><i></i><span>Works offline · saved on this device</span></div>
+    </div>
+    <div class="streak" id="streak"></div>
+  </header>
+  <main id="view"></main>
+</div>
+<nav class="tabs" aria-label="Sections">
+  <button data-act="tab" data-tab="today">Today</button>
+  <button data-act="tab" data-tab="ladders">Ladders</button>
+  <button data-act="tab" data-tab="history">History</button>
+</nav>
+
+<script>
+const TRACKS = [
+  {id:'push', name:'Push', levels:[
+    {n:'Wall push-up', t:'reps', s:3, g:15},
+    {n:'Incline push-up', t:'reps', s:3, g:12},
+    {n:'Knee push-up', t:'reps', s:3, g:12},
+    {n:'Full push-up', t:'reps', s:3, g:12},
+    {n:'Diamond push-up', t:'reps', s:3, g:10},
+    {n:'Archer push-up', t:'reps', s:3, g:8, e:1},
+    {n:'One-arm negative', t:'reps', s:3, g:5, e:1},
+    {n:'One-arm push-up', t:'reps', s:3, g:5, e:1}]},
+  {id:'pull', name:'Pull', levels:[
+    {n:'Dead hang', t:'secs', s:3, g:30},
+    {n:'Scapular pull-up', t:'reps', s:3, g:10},
+    {n:'Negative pull-up', t:'reps', s:3, g:5},
+    {n:'Australian row', t:'reps', s:3, g:12},
+    {n:'Pull-up', t:'reps', s:3, g:8},
+    {n:'Archer pull-up', t:'reps', s:3, g:5, e:1},
+    {n:'One-arm negative', t:'reps', s:3, g:3, e:1},
+    {n:'Muscle-up', t:'reps', s:3, g:3}]},
+  {id:'stand', name:'Handstand', levels:[
+    {n:'Wall plank', t:'secs', s:3, g:45},
+    {n:'Chest-to-wall hold', t:'secs', s:3, g:45},
+    {n:'Back-to-wall hold', t:'secs', s:3, g:30},
+    {n:'Kick-up hold', t:'secs', s:3, g:15},
+    {n:'Freestanding hold', t:'secs', s:3, g:30},
+    {n:'Wall HSPU negative', t:'reps', s:3, g:5},
+    {n:'Handstand push-up', t:'reps', s:3, g:5}]},
+  {id:'core', name:'Core', levels:[
+    {n:'Dead bug', t:'reps', s:3, g:12, e:1},
+    {n:'Hollow hold', t:'secs', s:3, g:30},
+    {n:'Tuck L-sit', t:'secs', s:3, g:20},
+    {n:'L-sit', t:'secs', s:3, g:15},
+    {n:'Dragon flag negative', t:'reps', s:3, g:5},
+    {n:'Dragon flag', t:'reps', s:3, g:5}]},
+  {id:'legs', name:'Legs', levels:[
+    {n:'Bodyweight squat', t:'reps', s:3, g:20},
+    {n:'Split squat', t:'reps', s:3, g:12, e:1},
+    {n:'Bulgarian split squat', t:'reps', s:3, g:10, e:1},
+    {n:'Assisted shrimp squat', t:'reps', s:3, g:6, e:1},
+    {n:'Shrimp squat', t:'reps', s:3, g:5, e:1},
+    {n:'Pistol squat', t:'reps', s:3, g:5, e:1}]}
+];
+
+const LS = 'rep-ladder-v1';
+const $ = s => document.querySelector(s);
+const pad = n => String(n).padStart(2, '0');
+const dkey = (d = new Date()) => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+const track = k => TRACKS.find(t => t.id === k);
+const unitOf = L => L.t === 'secs' ? 'sec' : 'reps';
+const goalText = L => L.s + ' × ' + L.g + ' ' + unitOf(L) + (L.e ? ' each side' : '');
+
+function blank() { return {cur:{push:0, pull:0, stand:0, core:0, legs:0}, logs:[]}; }
+function norm(d) {
+  const s = blank();
+  if (d && typeof d === 'object') {
+    for (const T of TRACKS) {
+      const v = d.cur && d.cur[T.id];
+      if (Number.isInteger(v)) s.cur[T.id] = Math.max(0, Math.min(T.levels.length - 1, v));
+    }
+    if (Array.isArray(d.logs)) {
+      s.logs = d.logs.filter(l => l && typeof l.t === 'string' && track(l.k) && Number.isInteger(l.l) && track(l.k).levels[l.l] && Number.isFinite(l.v));
+    }
+  }
+  return s;
+}
+
+let state = blank();
+try { const raw = localStorage.getItem(LS); if (raw) state = norm(JSON.parse(raw)); } catch (e) {}
+let sel = 'push', tab = 'today', draft = {}, restEnd = 0, restTimer = null;
+
+function cache() { try { localStorage.setItem(LS, JSON.stringify(state)); } catch (e) {} }
+function save() { cache(); }
+
+function getDraft(k) {
+  const key = k + ':' + state.cur[k];
+  return draft[key] != null ? draft[key] : track(k).levels[state.cur[k]].g;
+}
+function setDraft(k, v) { draft[k + ':' + state.cur[k]] = Math.max(0, Math.min(999, v)); }
+
+function startRest() { restEnd = Date.now() + 90000; clearInterval(restTimer); restTimer = setInterval(tick, 250); }
+function tick() {
+  const ms = restEnd - Date.now();
+  const el = $('#rest-t');
+  if (ms <= 0) {
+    clearInterval(restTimer);
+    if (el) el.textContent = 'Go';
+    try { navigator.vibrate && navigator.vibrate(250); } catch (e) {}
+    return;
+  }
+  if (el) { const s = Math.ceil(ms / 1000); el.textContent = Math.floor(s / 60) + ':' + pad(s % 60); }
+}
+
+function streak() {
+  const days = new Set(state.logs.map(l => l.t));
+  let n = 0; const d = new Date();
+  if (!days.has(dkey(d))) d.setDate(d.getDate() - 1);
+  while (days.has(dkey(d))) { n++; d.setDate(d.getDate() - 1); }
+  return n;
+}
+
+function vToday() {
+  const k = sel, T = track(k), i = state.cur[k], L = T.levels[i], last = i === T.levels.length - 1;
+  const td = dkey();
+  const mine = state.logs.filter(l => l.t === td && l.k === k);
+  const hit = mine.filter(l => l.l === i && l.v >= L.g).length;
+  const chips = TRACKS.map(t => '<button class="chip" data-act="track" data-k="' + t.id + '" aria-pressed="' + (t.id === k) + '">' + t.name + '</button>').join('');
+  const dots = Array.from({length:L.s}, (_, j) => '<span class="dot' + (j < hit ? ' on' : '') + '"></span>').join('');
+  const rest = restEnd ? '<div class="rest"><span>Rest</span><b id="rest-t">1:30</b><span class="rest-btns"><button data-act="rest-add">+15s</button><button data-act="rest-skip">Skip</button></span></div>' : '';
+  let banner = '';
+  if (hit >= L.s) {
+    banner = last
+      ? '<div class="banner"><div><b>Top of the ' + T.name + ' ladder.</b> Goal hit. Keep the volume up.</div></div>'
+      : '<div class="banner"><div><b>Goal hit.</b> Ready for ' + T.levels[i + 1].n + '?</div><button class="btn sm" data-act="levelup">Level up</button></div>';
+  }
+  const sets = mine.length
+    ? '<ul class="list">' + mine.map(l => '<li><span>' + T.levels[l.l].n + '</span><b>' + l.v + ' ' + unitOf(T.levels[l.l]) + '</b></li>').join('') + '</ul><button class="ghost" data-act="undo">Undo last set</button>'
+    : '<p class="empty">No sets yet today. Log your first one above.</p>';
+  return '<div class="chips">' + chips + '</div>' +
+    '<section class="card"><div class="eyebrow">' + T.name + ' · Level ' + (i + 1) + ' of ' + T.levels.length + '</div>' +
+    '<h1 class="lvl">' + L.n + '</h1><p class="goal">Goal ' + goalText(L) + '</p><div class="dots" aria-label="' + hit + ' of ' + L.s + ' goal sets done today">' + dots + '</div>' +
+    '<div class="stepper"><button class="step" data-act="minus" aria-label="Less">−</button>' +
+    '<input class="val" id="val" type="number" inputmode="numeric" min="0" max="999" value="' + getDraft(k) + '" aria-label="' + unitOf(L) + ' for this set">' +
+    '<button class="step" data-act="plus" aria-label="More">+</button></div>' +
+    '<div class="eyebrow unit">' + unitOf(L) + (L.e ? ' each side' : '') + '</div>' +
+    '<button class="btn" data-act="log">Log set</button>' + rest + banner + '</section>' +
+    '<section class="sec"><h2>Today</h2>' + sets + '</section>';
+}
+
+function vLadders() {
+  return TRACKS.map(T => {
+    const cur = state.cur[T.id];
+    const rows = T.levels.map((L, j) => {
+      const st = j < cur ? 'done' : j === cur ? 'now' : 'up';
+      const mk = st === 'done' ? '<span class="mk done"><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2 6.5l2.5 2.5L10 3.5" fill="none" stroke="currentColor" stroke-width="2"/></svg></span>' : '<span class="mk ' + st + '"></span>';
+      return '<li><button class="lad ' + st + '" data-act="setlevel" data-k="' + T.id + '" data-i="' + j + '">' + mk +
+        '<span class="nm">' + (st === 'now' ? '<span class="here">You are here</span>' : '') + L.n + '</span><span class="gl">' + L.s + '×' + L.g + (L.t === 'secs' ? 's' : '') + '</span></button></li>';
+    }).join('');
+    return '<section class="sec"><h2><span>' + T.name + '</span><span class="eyebrow">' + (cur + 1) + ' / ' + T.levels.length + '</span></h2><ul class="list">' + rows + '</ul></section>';
+  }).join('') + '<p class="empty">Tap a step to set where you are on that ladder.</p>';
+}
+
+function chart() {
+  const days = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const key = dkey(d);
+    days.push({l:'SMTWTFS'[d.getDay()], n:state.logs.filter(x => x.t === key).length, now:i === 0});
+  }
+  const top = Math.ceil(Math.max(4, ...days.map(d => d.n)) / 2) * 2;
+  const W = 336, H = 132, x0 = 30, x1 = 332, y0 = 10, y1 = 104, bw = (x1 - x0) / 14;
+  const y = n => y1 - (n / top) * (y1 - y0);
+  let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Sets logged per day over the last 14 days">';
+  s += '<line class="gl2" x1="' + x0 + '" x2="' + x1 + '" y1="' + y(0) + '" y2="' + y(0) + '"/><line class="gl2" x1="' + x0 + '" x2="' + x1 + '" y1="' + y(top) + '" y2="' + y(top) + '"/>';
+  s += '<text class="ax" x="' + (x0 - 6) + '" y="' + (y(0) + 3) + '" text-anchor="end">0</text><text class="ax" x="' + (x0 - 6) + '" y="' + (y(top) + 3) + '" text-anchor="end">' + top + '</text>';
+  days.forEach((d, j) => {
+    const x = x0 + j * bw + (bw - 14) / 2;
+    if (d.n) s += '<rect class="bar' + (d.now ? ' now' : '') + '" x="' + x + '" y="' + y(d.n) + '" width="14" height="' + (y1 - y(d.n)) + '" rx="2"/>';
+    s += '<text class="ax" x="' + (x0 + j * bw + bw / 2) + '" y="124" text-anchor="middle">' + d.l + '</text>';
+  });
+  return s + '</svg>';
+}
+
+function sessions() {
+  const dates = [...new Set(state.logs.map(l => l.t))].sort().reverse().slice(0, 7);
+  return dates.map(d => {
+    const groups = {};
+    state.logs.filter(l => l.t === d).forEach(l => { const key = l.k + ':' + l.l; (groups[key] = groups[key] || []).push(l.v); });
+    const rows = Object.entries(groups).map(([key, vs]) => {
+      const [k, li] = key.split(':'); const L = track(k).levels[+li];
+      return '<li><span>' + L.n + '</span><b>' + vs.join(' · ') + (L.t === 'secs' ? ' s' : '') + '</b></li>';
+    }).join('');
+    const [yy, mm, dd] = d.split('-').map(Number);
+    const lab = new Date(yy, mm - 1, dd).toLocaleDateString(undefined, {weekday:'short', day:'numeric', month:'short'});
+    return '<section class="day"><h3>' + lab + '</h3><ul class="list">' + rows + '</ul></section>';
+  }).join('');
+}
+
+function vHistory() {
+  const wk = new Set(); for (let i = 0; i < 7; i++) { const d = new Date(); d.setDate(d.getDate() - i); wk.add(dkey(d)); }
+  const f = new Set(); for (let i = 0; i < 14; i++) { const d = new Date(); d.setDate(d.getDate() - i); f.add(dkey(d)); }
+  const setsWeek = state.logs.filter(l => wk.has(l.t)).length;
+  const days14 = new Set(state.logs.filter(l => f.has(l.t)).map(l => l.t)).size;
+  const cleared = TRACKS.reduce((a, T) => a + state.cur[T.id], 0);
+  const body = state.logs.length ? sessions() : '<p class="empty">Log your first set on Today and your sessions will show up here.</p>';
+  return '<section class="sec" style="margin-top:8px"><h2>Last 14 days</h2>' +
+    '<div class="stats"><div><b>' + setsWeek + '</b><span>sets this week</span></div><div><b>' + days14 + '</b><span>days trained</span></div><div><b>' + cleared + '</b><span>levels cleared</span></div></div>' +
+    chart() + '</section><section class="sec"><h2>Sessions</h2>' + body + '</section>';
+}
+
+function render() {
+  $('#view').innerHTML = tab === 'today' ? vToday() : tab === 'ladders' ? vLadders() : vHistory();
+  document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-current', b.dataset.tab === tab ? 'page' : 'false'));
+  const n = streak();
+  $('#streak').innerHTML = n ? '<b>' + n + '</b>-day streak' : 'No streak yet';
+  if (restEnd) tick();
+}
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const a = b.dataset.act, k = sel, L = track(k).levels[state.cur[k]];
+  if (a === 'tab') { tab = b.dataset.tab; window.scrollTo(0, 0); }
+  else if (a === 'track') { sel = b.dataset.k; }
+  else if (a === 'minus') { setDraft(k, getDraft(k) - (L.t === 'secs' ? 5 : 1)); }
+  else if (a === 'plus') { setDraft(k, getDraft(k) + (L.t === 'secs' ? 5 : 1)); }
+  else if (a === 'log') {
+    const v = getDraft(k); if (!(v > 0)) return;
+    state.logs.push({t:dkey(), k, l:state.cur[k], v, ts:Date.now()});
+    if (state.logs.length > 1500) state.logs = state.logs.slice(-1500);
+    startRest(); save();
+  }
+  else if (a === 'undo') {
+    const td = dkey();
+    for (let j = state.logs.length - 1; j >= 0; j--) { if (state.logs[j].t === td && state.logs[j].k === k) { state.logs.splice(j, 1); break; } }
+    save();
+  }
+  else if (a === 'levelup') { state.cur[k] = Math.min(track(k).levels.length - 1, state.cur[k] + 1); save(); }
+  else if (a === 'setlevel') { state.cur[b.dataset.k] = +b.dataset.i; save(); }
+  else if (a === 'rest-add') { restEnd += 15000; clearInterval(restTimer); restTimer = setInterval(tick, 250); }
+  else if (a === 'rest-skip') { restEnd = 0; clearInterval(restTimer); }
+  render();
+});
+document.addEventListener('input', e => {
+  if (e.target.id === 'val') setDraft(sel, parseInt(e.target.value, 10) || 0);
+});
+
+render();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+}
+</script>
+</body>
+</html>
